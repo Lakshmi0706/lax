@@ -3,7 +3,8 @@ import pandas as pd
 import re
 import io
 
-# Map to standardize various unit formats
+# ---------------------------- Core Parsing Functions ----------------------------
+
 UNIT_MAP = {
     'FLOZ': 'FL OZ', 'FLUIDOUNCE': 'FL OZ', 'FLUID OUNCE': 'FL OZ', 'FL': 'FL OZ',
     'OZ': 'FL OZ', 'OUNCE': 'FL OZ', 'OZ.': 'FL OZ', 'OZCANS': 'FL OZ', ' OZ': 'FL OZ',
@@ -110,14 +111,10 @@ def parse_description(description):
         'Count Unit': count_unit
     }
 
-# ----------------------------
-# Streamlit App Starts Here
-# ----------------------------
+# ---------------------------- Streamlit App Starts Here ----------------------------
 
-# Set page config
 st.set_page_config(page_title="NIQ", layout="centered")
 
-# Ocean Blue Header
 st.markdown("""
     <div style='text-align:center; padding:20px; background-color:#0077B6; color:white; border-radius:10px;'>
         <h1 style='margin-bottom:0;'>NIQ</h1>
@@ -158,36 +155,29 @@ if uploaded_file:
         column_options = list(excel_data.columns)
         selected_column = st.selectbox("Select the column containing product descriptions:", column_options)
 
+        # ✅ Let user select other columns to include via checkboxes
+        st.markdown("### 🧩 Select additional columns to include in the output")
+        selected_extra_columns = []
+        for col in column_options:
+            if col != selected_column and st.checkbox(f"Include column: {col}", value=False):
+                selected_extra_columns.append(col)
+
         if st.button("🚀 Parse Descriptions"):
             description_lines = excel_data[selected_column].dropna().astype(str).tolist()
             results = [parse_description(desc) for desc in description_lines]
-            df = pd.DataFrame(results)
+            parsed_df = pd.DataFrame(results)
+
+            # ✅ Merge with selected extra columns
+            final_df = parsed_df.copy()
+            for col in selected_extra_columns:
+                final_df[col] = excel_data[col]
+
             st.success("✅ Parsing complete!")
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(final_df, use_container_width=True)
 
-            # ✅ New Feature: Checkbox selection for display and download
-            st.markdown("### 🧩 Select Columns to Display and Download")
-
-            selected_columns = []
-            with st.container():
-                for col in df.columns:
-                    if st.checkbox(f"Include '{col}'", value=True):
-                        selected_columns.append(col)
-
-            if selected_columns:
-                filtered_df = df[selected_columns]
-                st.markdown("### 📊 Filtered Results")
-                st.dataframe(filtered_df, use_container_width=True)
-
-                filtered_csv = filtered_df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📤 Download Selected Columns as CSV",
-                    data=filtered_csv,
-                    file_name="filtered_parsed_products.csv",
-                    mime="text/csv"
-                )
-            else:
-                st.warning("⚠️ Please select at least one column to display and download.")
+            # Download button
+            csv = final_df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Download Combined CSV", data=csv, file_name="parsed_products_with_columns.csv", mime="text/csv")
 
     except Exception as e:
         st.error(f"❌ Failed to read Excel file: {e}")

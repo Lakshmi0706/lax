@@ -103,9 +103,10 @@ def extract_name(description, count_text, size_text, count, size_value, size_uni
     count_combined = f"{count} COUNT"
     return name, size, count, count_combined
 
-def parse_description(description):
-    name, size, count_combined = extract_size_and_count(description)[0:3] + (extract_size_and_count(description)[3],)
+def parse_description(original_description):
+    name, size, _, count_combined = extract_size_and_count(original_description)
     return {
+        'Product Description': original_description,  # Original kept untouched
         'Product Name': name,
         'Product Size': size,
         'Product Count': count_combined
@@ -166,17 +167,18 @@ if uploaded_file:
             results = [parse_description(desc) for desc in description_lines]
             parsed_df = pd.DataFrame(results)
 
-            # ✅ Add original description back
-            parsed_df[selected_column] = excel_data[selected_column]
-
-            # ✅ Merge with other selected columns
+            # ✅ Merge with selected extra columns
             for col in selected_extra_columns:
                 parsed_df[col] = excel_data[col]
 
             st.success("✅ Parsing complete!")
             st.dataframe(parsed_df, use_container_width=True)
 
+            # Download as CSV
             csv = parsed_df.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Download Combined CSV", data=csv, file_name="parsed_products_with_columns.csv", mime="text/csv")
 
     except Exception as e:
+        st.error(f"❌ Failed to read Excel file: {e}")
+else:
+    st.info("Please upload an Excel file to begin.")

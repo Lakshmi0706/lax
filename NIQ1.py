@@ -1,21 +1,22 @@
 import streamlit as st
 import pandas as pd
 import re
+import io
 
 # Map to standardize various unit formats
 UNIT_MAP = {
     'FLOZ': 'FL OZ', 'FLUIDOUNCE': 'FL OZ', 'FLUID OUNCE': 'FL OZ', 'FL': 'FL OZ',
-    'OZ': 'FL OZ', 'OUNCE': 'FL OZ', 'OZ.': 'FL OZ', 'OZCANS': 'FL OZ', ' OZ':'FL OZ',
+    'OZ': 'FL OZ', 'OUNCE': 'FL OZ', 'OZ.': 'FL OZ', 'OZCANS': 'FL OZ', ' OZ': 'FL OZ',
     'FL. OZ.': 'FL OZ', 'OZ CANS': 'FL OZ', 'FLUID-OZ': 'FL OZ', 'FLUID OZ': 'FL OZ',
-    'FL.OZ.': 'FL OZ', 'Ozbottles': 'FL OZ','Flozcans': 'FL OZ','FLOZCANS': 'FL OZ',
-    'OZBOTTLES': 'FL OZ','ozbottles': 'FL OZ','oz bottles': 'FL OZ','OZ bottles': 'FL OZ',
+    'FL.OZ.': 'FL OZ', 'Ozbottles': 'FL OZ', 'Flozcans': 'FL OZ', 'FLOZCANS': 'FL OZ',
+    'OZBOTTLES': 'FL OZ', 'ozbottles': 'FL OZ', 'oz bottles': 'FL OZ', 'OZ bottles': 'FL OZ',
     'FLOZBOTTLES': 'FL OZ', 'OUNCES': 'FL OZ', 'ounnces': 'FL OZ',
     'ML': 'ML', 'MILLILITRE': 'ML', 'MILLILITER': 'ML',
     'LTR': 'L', 'LITRE': 'L', 'LT': 'L', 'L': 'L',
     'GALLON': 'GAL', 'GAL': 'GAL'
 }
 
-COUNT_KEYWORDS = ['COUNT', 'CT', 'PACK', 'PK', 'P', 'PK/','-Pk','-PK']
+COUNT_KEYWORDS = ['COUNT', 'CT', 'PACK', 'PK', 'P', 'PK/', '-Pk', '-PK']
 
 def clean_description(desc):
     desc = desc.upper()
@@ -36,14 +37,12 @@ def extract_size_and_count(description):
     size_text_to_remove = None
     count_text_to_remove = None
 
-    # 0️⃣ NEW: Handle formats like "10PK/7.5 FL OZ"
     pack_inline_match = re.search(r'(\d+)\s*(PK/|PK|CT|PACK|P)(?=[\s/])?', desc)
     if pack_inline_match:
         count = pack_inline_match.group(1)
         count_unit = pack_inline_match.group(2)
         count_text_to_remove = pack_inline_match.group(0)
 
-    # 1️⃣ Combo pattern: "12-12 FL OZ" or "8 x 330ML"
     combo_pattern = re.compile(r'(\d+(?:\.\d+)?)\s*[-xX]\s*(\d+(?:\.\d+)?)\s*([A-Z.\s\-]+)')
     combo_match = combo_pattern.search(desc)
     if combo_match:
@@ -54,15 +53,13 @@ def extract_size_and_count(description):
         size_text_to_remove = combo_match.group(0)
         count_text_to_remove = count
         return extract_name(desc, count_text_to_remove, size_text_to_remove, count, size_value, size_unit)
-    
-    # 🔁 NEW: Handle "PACK OF 35"
+
     pack_of_match = re.search(r'PACK OF (\d+)', desc)
     if pack_of_match:
         count = pack_of_match.group(1)
         count_unit = 'PACK'
         count_text_to_remove = pack_of_match.group(0)
 
-    # 2️⃣ Count keywords like "35 PK"
     tokens = desc.split()
     for i, token in enumerate(tokens):
         if token in COUNT_KEYWORDS and i > 0 and tokens[i - 1].isdigit():
@@ -76,7 +73,6 @@ def extract_size_and_count(description):
             count_text_to_remove = f"{count} {count_unit}"
             break
 
-    # 3️⃣ Size patterns like "20-OZ", "16.9 OZ"
     size_patterns = [re.compile(r'(\d+(?:\.\d+)?)[\-\s]?([A-Z.\-]+)')]
     for pattern in size_patterns:
         for match in pattern.finditer(desc):
@@ -117,8 +113,6 @@ def parse_description(description):
 # ----------------------------
 # Streamlit App Starts Here
 # ----------------------------
-
-import io
 
 # Set page config
 st.set_page_config(page_title="NIQ", layout="centered")
@@ -170,11 +164,32 @@ if uploaded_file:
             df = pd.DataFrame(results)
             st.success("✅ Parsing complete!")
             st.dataframe(df, use_container_width=True)
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Download Parsed CSV", data=csv, file_name="parsed_products.csv", mime="text/csv")
+
+            # ✅ New Feature: Checkbox selection for display and download
+            st.markdown("### 🧩 Select Columns to Display and Download")
+
+            selected_columns = []
+            with st.container():
+                for col in df.columns:
+                    if st.checkbox(f"Include '{col}'", value=True):
+                        selected_columns.append(col)
+
+            if selected_columns:
+                filtered_df = df[selected_columns]
+                st.markdown("### 📊 Filtered Results")
+                st.dataframe(filtered_df, use_container_width=True)
+
+                filtered_csv = filtered_df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📤 Download Selected Columns as CSV",
+                    data=filtered_csv,
+                    file_name="filtered_parsed_products.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.warning("⚠️ Please select at least one column to display and download.")
 
     except Exception as e:
         st.error(f"❌ Failed to read Excel file: {e}")
 else:
     st.info("Please upload an Excel file to begin.")
-

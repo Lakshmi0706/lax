@@ -108,8 +108,7 @@ def parse_description(description):
     return {
         'Product Name': name,
         'Product Size': size,
-        'Product Count': count,
-        'Count Unit': count_combined
+        'Product Count': count_combined
     }
 
 # ---------------------------- Streamlit App Starts Here ----------------------------

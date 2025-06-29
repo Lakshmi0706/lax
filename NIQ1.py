@@ -6,12 +6,12 @@ import io
 # ---------------------------- Core Parsing Functions ----------------------------
 
 UNIT_MAP = {
-    'FLOZ': 'FL OZ', 'FLUIDOUNCE': 'FL OZ', 'FLUID OUNCE': 'FL OZ', 'FL': 'FL OZ',
-    'OZ': 'FL OZ', 'OUNCE': 'FL OZ', 'OZ.': 'FL OZ', 'OZCANS': 'FL OZ', ' OZ': 'FL OZ',
-    'FL. OZ.': 'FL OZ', 'OZ CANS': 'FL OZ', 'FLUID-OZ': 'FL OZ', 'FLUID OZ': 'FL OZ',
-    'FL.OZ.': 'FL OZ', 'Ozbottles': 'FL OZ', 'Flozcans': 'FL OZ', 'FLOZCANS': 'FL OZ',
-    'OZBOTTLES': 'FL OZ', 'ozbottles': 'FL OZ', 'oz bottles': 'FL OZ', 'OZ bottles': 'FL OZ',
-    'FLOZBOTTLES': 'FL OZ', 'OUNCES': 'FL OZ', 'ounnces': 'FL OZ',
+    'FLOZ': 'FLUID OUNCE', 'FLUIDOUNCE': 'FLUID OUNCE', 'FLUID OUNCE': 'FLUID OUNCE', 'FL': 'FLUID OUNCE',
+    'OZ': 'FLUID OUNCE', 'OUNCE': 'FLUID OUNCE', 'OZ.': 'FLUID OUNCE', 'OZCANS': 'FLUID OUNCE', ' OZ': 'FLUID OUNCE',
+    'FL. OZ.': 'FLUID OUNCE', 'OZ CANS': 'FLUID OUNCE', 'FLUID-OZ': 'FLUID OUNCE', 'FLUID OZ': 'FLUID OUNCE',
+    'FL.OZ.': 'FLUID OUNCE', 'Ozbottles': 'FLUID OUNCE', 'Flozcans': 'FLUID OUNCE', 'FLOZCANS': 'FLUID OUNCE',
+    'OZBOTTLES': 'FLUID OUNCE', 'ozbottles': 'FLUID OUNCE', 'oz bottles': 'FLUID OUNCE', 'OZ bottles': 'FLUID OUNCE',
+    'FLOZBOTTLES': 'FLUID OUNCE', 'OUNCES': 'FLUID OUNCE', 'ounnces': 'FLUID OUNCE',
     'ML': 'ML', 'MILLILITRE': 'ML', 'MILLILITER': 'ML',
     'LTR': 'L', 'LITRE': 'L', 'LT': 'L', 'L': 'L',
     'GALLON': 'GAL', 'GAL': 'GAL'

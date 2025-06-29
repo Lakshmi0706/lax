@@ -32,7 +32,7 @@ def standardize_unit(unit):
 def extract_size_and_count(description):
     desc = clean_description(description)
     count = '1'
-    count_unit = 'CT'
+    count_unit = 'COUNT'
     size_value = None
     size_unit = None
     size_text_to_remove = None
@@ -100,7 +100,8 @@ def extract_name(description, count_text, size_text, count, size_value, size_uni
     name_desc = re.sub(r'\s+', ' ', name_desc).strip()
     name = name_desc.title()
     size = f"{size_value} {size_unit}" if size_value and size_unit else None
-    return name, size, count, "CT"
+    count_combined = f"{count} COUNT"
+    return name, size, count, count_combined
 
 def parse_description(description):
     name, size, count, count_unit = extract_size_and_count(description)
@@ -108,7 +109,7 @@ def parse_description(description):
         'Product Name': name,
         'Product Size': size,
         'Product Count': count,
-        'Count Unit': count_unit
+        'Count Unit': count_combined
     }
 
 # ---------------------------- Streamlit App Starts Here ----------------------------

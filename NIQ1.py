@@ -104,7 +104,7 @@ def extract_name(description, count_text, size_text, count, size_value, size_uni
     return name, size, count, count_combined
 
 def parse_description(description):
-    name, size, count, count_combined = extract_size_and_count(description)
+    name, size, count_combined = extract_size_and_count(description)[0:3] + (extract_size_and_count(description)[3],)
     return {
         'Product Name': name,
         'Product Size': size,
@@ -155,7 +155,6 @@ if uploaded_file:
         column_options = list(excel_data.columns)
         selected_column = st.selectbox("Select the column containing product descriptions:", column_options)
 
-        # ✅ Let user select other columns to include via checkboxes
         st.markdown("### 🧩 Select additional columns to include in the output")
         selected_extra_columns = []
         for col in column_options:
@@ -167,19 +166,17 @@ if uploaded_file:
             results = [parse_description(desc) for desc in description_lines]
             parsed_df = pd.DataFrame(results)
 
-            # ✅ Merge with selected extra columns
-            final_df = parsed_df.copy()
+            # ✅ Add original description back
+            parsed_df[selected_column] = excel_data[selected_column]
+
+            # ✅ Merge with other selected columns
             for col in selected_extra_columns:
-                final_df[col] = excel_data[col]
+                parsed_df[col] = excel_data[col]
 
             st.success("✅ Parsing complete!")
-            st.dataframe(final_df, use_container_width=True)
+            st.dataframe(parsed_df, use_container_width=True)
 
-            # Download button
-            csv = final_df.to_csv(index=False).encode('utf-8')
+            csv = parsed_df.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Download Combined CSV", data=csv, file_name="parsed_products_with_columns.csv", mime="text/csv")
 
     except Exception as e:
-        st.error(f"❌ Failed to read Excel file: {e}")
-else:
-    st.info("Please upload an Excel file to begin.")

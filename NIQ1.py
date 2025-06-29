@@ -104,7 +104,7 @@ def extract_name(description, count_text, size_text, count, size_value, size_uni
     return name, size, count, count_combined
 
 def parse_description(description):
-    name, size, count, count_unit = extract_size_and_count(description)
+    name, size, count, count_combined = extract_size_and_count(description)
     return {
         'Product Name': name,
         'Product Size': size,

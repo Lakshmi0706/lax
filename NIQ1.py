@@ -38,14 +38,8 @@ def extract_size_and_count(description):
     size_text_to_remove = None
     count_text_to_remove = None
 
-    
-inline_pack_match = re.search(r'(\d+)[\-\s]?(PK|PACK)', desc)
-if inline_pack_match:
-    count = inline_pack_match.group(1)
-    count_unit = inline_pack_match.group(2)
 
-
-    pack_inline_match = re.search(r'(\d+)\s*(PK/|PK|CT|PACK|P)(?=[\s/])?', desc)
+    pack_inline_match = re.search(r'(\d+)[\-\s]?(PK|PACK)', desc)
     if pack_inline_match:
         count = pack_inline_match.group(1)
         count_unit = pack_inline_match.group(2)
@@ -189,6 +183,7 @@ if uploaded_file:
         st.error(f"❌ Failed to read Excel file: {e}")
 else:
     st.info("Please upload an Excel file to begin.")
+
 
 
 

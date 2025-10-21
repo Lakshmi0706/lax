@@ -17,7 +17,7 @@ UNIT_MAP = {
     'GALLON': 'GAL', 'GAL': 'GAL'
 }
 
-COUNT_KEYWORDS = ['COUNT', 'CT', 'PACK', 'PK', 'P', 'PK/', '-Pk', '-PK']
+COUNT_KEYWORDS = ['COUNT', 'CT', 'PACK', 'PK', 'P', 'PK/', '-PK', '-Pk']
 
 def clean_description(desc):
     desc = desc.upper()
@@ -38,12 +38,14 @@ def extract_size_and_count(description):
     size_text_to_remove = None
     count_text_to_remove = None
 
-    pack_inline_match = re.search(r'(\d+)\s*(PK/|PK|CT|PACK|P)(?=[\s/])?', desc)
+    # --- Detect Pack Count (12-PK, 8 PK, 10 CT, etc.)
+    pack_inline_match = re.search(r'(\d+)\s*(?:-?\s*)(PK|PACK|CT|COUNT|P)(?=[\s/]|$)', desc)
     if pack_inline_match:
         count = pack_inline_match.group(1)
-        count_unit = pack_inline_match.group(2)
+        count_unit = 'COUNT'
         count_text_to_remove = pack_inline_match.group(0)
 
+    # --- Detect combined patterns like "8 x 500ml"
     combo_pattern = re.compile(r'(\d+(?:\.\d+)?)\s*[-xX]\s*(\d+(?:\.\d+)?)\s*([A-Z.\s\-]+)')
     combo_match = combo_pattern.search(desc)
     if combo_match:
@@ -52,28 +54,16 @@ def extract_size_and_count(description):
         unit_raw = combo_match.group(3).strip()
         size_unit = standardize_unit(unit_raw)
         size_text_to_remove = combo_match.group(0)
-        count_text_to_remove = count
+        count_text_to_remove = combo_match.group(1)
         return extract_name(desc, count_text_to_remove, size_text_to_remove, count, size_value, size_unit)
 
+    # --- Detect "PACK OF 6"
     pack_of_match = re.search(r'PACK OF (\d+)', desc)
     if pack_of_match:
         count = pack_of_match.group(1)
-        count_unit = 'PACK'
         count_text_to_remove = pack_of_match.group(0)
 
-    tokens = desc.split()
-    for i, token in enumerate(tokens):
-        if token in COUNT_KEYWORDS and i > 0 and tokens[i - 1].isdigit():
-            count = tokens[i - 1]
-            count_unit = token
-            count_text_to_remove = f"{count} {count_unit}"
-            break
-        elif token.isdigit() and i + 1 < len(tokens) and tokens[i + 1] in COUNT_KEYWORDS:
-            count = token
-            count_unit = tokens[i + 1]
-            count_text_to_remove = f"{count} {count_unit}"
-            break
-
+    # --- Detect size like "16.9 FL OZ"
     size_patterns = [re.compile(r'(\d+(?:\.\d+)?)[\-\s]?([A-Z.\-]+)')]
     for pattern in size_patterns:
         for match in pattern.finditer(desc):
@@ -106,7 +96,7 @@ def extract_name(description, count_text, size_text, count, size_value, size_uni
 def parse_description(original_description):
     name, size, _, count_combined = extract_size_and_count(original_description)
     return {
-        'Product Description': original_description,  # Original kept untouched
+        'Product Description': original_description,
         'Product Name': name,
         'Product Size': size,
         'Product Count': count_combined
@@ -129,9 +119,10 @@ uploaded_file = st.file_uploader("Drop your `.xlsx` or `.xlsm` file here", type=
 # 📄 Sample Excel Download
 sample_df = pd.DataFrame({
     'ProductDescriptions': [
-        '12-12 FL OZ Coca Cola Cans',
+        '12-PK 12 FL OZ Coca Cola Cans',
         'Pack of 35 Nestle Water Bottles 16.9 oz',
-        '8 x 500ml Pepsi Max Bottles'
+        '8 x 500ml Pepsi Max Bottles',
+        'Cocacola Cherry Soda Mini Cans 10-PK / 7.5 FL OZ'
     ]
 })
 excel_buffer = io.BytesIO()
@@ -167,14 +158,12 @@ if uploaded_file:
             results = [parse_description(desc) for desc in description_lines]
             parsed_df = pd.DataFrame(results)
 
-            # ✅ Merge with selected extra columns
             for col in selected_extra_columns:
                 parsed_df[col] = excel_data[col]
 
             st.success("✅ Parsing complete!")
             st.dataframe(parsed_df, use_container_width=True)
 
-            # Download as CSV
             csv = parsed_df.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Download Combined CSV", data=csv, file_name="parsed_products_with_columns.csv", mime="text/csv")
 

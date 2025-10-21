@@ -114,7 +114,7 @@ def parse_description(original_description):
 
 # ---------------------------- Streamlit App Starts Here ----------------------------
 
-st.set_page_config(page_title="NIQ", layout="centered")
+st.set_page_config(page_title="NIQ", layout="wide")
 
 st.markdown("""
     <div style='text-align:center; padding:20px; background-color:#0077B6; color:white; border-radius:10px;'>

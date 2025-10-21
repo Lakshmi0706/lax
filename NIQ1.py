@@ -1,9 +1,8 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import re
 import io
-
-# ---------------------------- Core Parsing Functions ----------------------------
 
 UNIT_MAP = {
     'FLOZ': 'FLUID OUNCE', 'FLUIDOUNCE': 'FLUID OUNCE', 'FLUID OUNCE': 'FLUID OUNCE', 'FL': 'FLUID OUNCE',
@@ -17,10 +16,10 @@ UNIT_MAP = {
     'GALLON': 'GAL', 'GAL': 'GAL'
 }
 
-COUNT_KEYWORDS = ['COUNT', 'CT', 'PACK', 'PK', 'P', 'PK/', '-PK', '-Pk']
+COUNT_KEYWORDS = ['COUNT', 'CT', 'PACK', 'PK', 'P', 'PK/', '-Pk', '-PK']
 
 def clean_description(desc):
-    desc = desc.upper()
+    desc = str(desc).upper()
     desc = re.sub(r'[^\w\s.\-\|/]', ' ', desc)
     desc = re.sub(r'\s+', ' ', desc)
     return desc.strip()
@@ -29,23 +28,24 @@ def standardize_unit(unit):
     unit_clean = unit.replace(" ", "").replace(".", "").upper()
     return UNIT_MAP.get(unit_clean, None)
 
+def extract_pack_count(text):
+    if not isinstance(text, str):
+        return np.nan
+    match = re.search(r'(\d+)\s*(?:-?\s*)(PK|PACK|CT|COUNT|P)\b', text, flags=re.IGNORECASE)
+    if match:
+        return int(match.group(1))
+    else:
+        return 1
+
 def extract_size_and_count(description):
     desc = clean_description(description)
-    count = '1'
+    count = extract_pack_count(desc)
     count_unit = 'COUNT'
     size_value = None
     size_unit = None
     size_text_to_remove = None
     count_text_to_remove = None
 
-    # --- Detect Pack Count (12-PK, 8 PK, 10 CT, etc.)
-    pack_inline_match = re.search(r'(\d+)\s*(?:-?\s*)(PK|PACK|CT|COUNT|P)(?=[\s/]|$)', desc)
-    if pack_inline_match:
-        count = pack_inline_match.group(1)
-        count_unit = 'COUNT'
-        count_text_to_remove = pack_inline_match.group(0)
-
-    # --- Detect combined patterns like "8 x 500ml"
     combo_pattern = re.compile(r'(\d+(?:\.\d+)?)\s*[-xX]\s*(\d+(?:\.\d+)?)\s*([A-Z.\s\-]+)')
     combo_match = combo_pattern.search(desc)
     if combo_match:
@@ -54,16 +54,9 @@ def extract_size_and_count(description):
         unit_raw = combo_match.group(3).strip()
         size_unit = standardize_unit(unit_raw)
         size_text_to_remove = combo_match.group(0)
-        count_text_to_remove = combo_match.group(1)
+        count_text_to_remove = count
         return extract_name(desc, count_text_to_remove, size_text_to_remove, count, size_value, size_unit)
 
-    # --- Detect "PACK OF 6"
-    pack_of_match = re.search(r'PACK OF (\d+)', desc)
-    if pack_of_match:
-        count = pack_of_match.group(1)
-        count_text_to_remove = pack_of_match.group(0)
-
-    # --- Detect size like "16.9 FL OZ"
     size_patterns = [re.compile(r'(\d+(?:\.\d+)?)[\-\s]?([A-Z.\-]+)')]
     for pattern in size_patterns:
         for match in pattern.finditer(desc):
@@ -94,15 +87,13 @@ def extract_name(description, count_text, size_text, count, size_value, size_uni
     return name, size, count, count_combined
 
 def parse_description(original_description):
-    name, size, _, count_combined = extract_size_and_count(original_description)
+    name, size, count, count_combined = extract_size_and_count(original_description)
     return {
         'Product Description': original_description,
         'Product Name': name,
         'Product Size': size,
         'Product Count': count_combined
     }
-
-# ---------------------------- Streamlit App Starts Here ----------------------------
 
 st.set_page_config(page_title="NIQ", layout="wide")
 
@@ -116,13 +107,11 @@ st.markdown("""
 st.markdown("#### 📥 Upload an Excel file with product descriptions")
 uploaded_file = st.file_uploader("Drop your `.xlsx` or `.xlsm` file here", type=["xlsx", "xlsm"])
 
-# 📄 Sample Excel Download
 sample_df = pd.DataFrame({
     'ProductDescriptions': [
-        '12-PK 12 FL OZ Coca Cola Cans',
+        '12-12 FL OZ Coca Cola Cans',
         'Pack of 35 Nestle Water Bottles 16.9 oz',
-        '8 x 500ml Pepsi Max Bottles',
-        'Cocacola Cherry Soda Mini Cans 10-PK / 7.5 FL OZ'
+        '8 x 500ml Pepsi Max Bottles'
     ]
 })
 excel_buffer = io.BytesIO()
@@ -138,13 +127,20 @@ st.markdown("---")
 
 if uploaded_file:
     try:
-        excel_data = pd.read_excel(uploaded_file, engine='openpyxl')
+        df = pd.read_excel(uploaded_file, dtype=str, engine="openpyxl")
+        df.replace(to_replace=[r'#NAME\?', r'#N/A', r'#VALUE!', r'#REF!', 'FALSE', 'True', 'FALSE', 'NaN', np.nan],
+                   value=np.nan, regex=True, inplace=True)
+        df = df.ffill(axis=0)
+        df.dropna(how='all', inplace=True)
+        df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+        df.replace(to_replace=['None', 'nan', 'FALSE', 'TRUE'], value='', inplace=True)
+
         st.success("✅ Excel file uploaded successfully!")
 
         with st.expander("🔍 Preview Uploaded Data", expanded=True):
-            st.dataframe(excel_data.head(), use_container_width=True)
+            st.dataframe(df.head(), use_container_width=True)
 
-        column_options = list(excel_data.columns)
+        column_options = list(df.columns)
         selected_column = st.selectbox("Select the column containing product descriptions:", column_options)
 
         st.markdown("### 🧩 Select additional columns to include in the output")
@@ -154,12 +150,14 @@ if uploaded_file:
                 selected_extra_columns.append(col)
 
         if st.button("🚀 Parse Descriptions"):
-            description_lines = excel_data[selected_column].dropna().astype(str).tolist()
+            description_lines = df[selected_column].dropna().astype(str).tolist()
             results = [parse_description(desc) for desc in description_lines]
             parsed_df = pd.DataFrame(results)
 
             for col in selected_extra_columns:
-                parsed_df[col] = excel_data[col]
+                parsed_df[col] = df[col]
+
+            parsed_df["Product Count"] = parsed_df["Product Count"].astype(str)
 
             st.success("✅ Parsing complete!")
             st.dataframe(parsed_df, use_container_width=True)

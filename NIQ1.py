@@ -63,37 +63,4 @@ def extract_name(desc, count_text, size_text):
     return re.sub(r'\s+', ' ', desc).title().strip()
 
 def parse_description(original_description):
-    desc = clean_description(original_description)
-    count, count_unit, count_text = extract_count(desc)
-    combo_count, size_val, size_unit, size_text = extract_size(desc)
-    if combo_count:
-        count = combo_count
-    name = extract_name(desc, count_text, size_text)
-    size = f"{size_val} {size_unit}" if size_val and size_unit else None
-    return {
-        'Product Description': original_description,
-        'Product Name': name,
-        'Product Size': size,
-        'Product Count': f"{count} COUNT"
-    }
-
-# ---------------------------- Streamlit UI ----------------------------
-
-st.set_page_config(page_title="NIQ", layout="centered")
-
-st.markdown("""
-    <div style='text-align:center; padding:20px; background-color:#0077B6; color:white; border-radius:10px;'>
-        <h1 style='margin-bottom:0;'>NIQ</h1>
-        <p style='font-size:18px;'>Product Description Parser</p>
-    </div>
-""", unsafe_allow_html=True)
-
-st.markdown("#### 📥 Upload an Excel file with product descriptions")
-uploaded_file = st.file_uploader("Drop your `.xlsx` or `.xlsm` file here", type=["xlsx", "xlsm"])
-
-# 📄 Sample Excel Download
-sample_df = pd.DataFrame({
-    'ProductDescriptions': [
-        '12-12 FL OZ Coca Cola Cans',
-        'Pack of 35 Nestle Water Bottles 16.9 oz',
-       
+    desc
